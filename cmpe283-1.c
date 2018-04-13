@@ -13,9 +13,14 @@
  */
 
 #define IA32_VMX_BASIC 			0x00000480
+#define IA32_VMX_PINBASED_CTLS 		0x00000481
+#define IA32_VMX_PROCBASED_CTLS 	0x00000482
+#define IA32_VMX_PROCBASED_CTLS2 	0x0000048B
+#define IA32_VMX_EXIT_CTLS 		0x00000483
+#define IA32_VMX_ENTRY_CTLS 		0x00000484
 #define IA32_VMX_TRUE_PINBASED_CTLS	0x0000048D
 #define IA32_VMX_TRUE_PROCBASED_CTLS	0x0000048E
-#define IA32_VMX_PROCBASED_CTLS2	0x0000048B
+#define IA32_VMX_TRUE_PROCBASED_CTLS2 	0x0000048B
 #define IA32_VMX_TRUE_EXIT_CTLS    	0x0000048F
 #define IA32_VMX_TRUE_ENTRY_CTLS	0x00000490
 
@@ -142,36 +147,6 @@ struct capability_info entry[9] =
 };
 
 /*
- * read_msr
- *
- * Checks if the bit 55 of IA32_VMX_BASIC and Bit63 of IA32_VMX_PROCBASED_CLTS is set or not
- */
-
-static void read_msr(void)
-{
-    unsigned int high, low;
-
-	// Bit 55 of IA32_VMX_BASIC
-    rdmsr(IA32_VMX_BASIC, low, high);
-
-    if(test_bit(BIT55, (unsigned long*)&high))
-        printk("Bit 55 of IA32_VMX_BASIC is set!\n");
-    else
-        printk("Bit 55 of IA32_VMX_BASIC is not set!\n");
-
-
-	//Bit 63 of IA32_VMX_PROCBASED_CLTS
-    rdmsr(IA32_VMX_TRUE_PROCBASED_CTLS, low, high);
-
-    if(test_bit(BIT63, (unsigned long*)&high))
-        printk("Bit 63 of IA32_VMX_PROCBASED_CLTS is set!\n");
-    else
-        printk("Bit 63 of IA32_VMX_PROCBASED_CLTS is not set!\n");
-    
-}
-
-
-/*
  * report_capability
  *
  * Reports capabilities present in 'cap' using the corresponding MSR values
@@ -213,39 +188,121 @@ detect_vmx_features(void)
 {
 	uint32_t lo, hi;
 
-	/* Check if BIT 55 of IA32_VMX_BASIC and BIT 63 of 			   IA32_VMX_TRUE_PROCBASED_CTLS is set or not  */
+	/* Check if BIT 55 of IA32_VMX_BASIC and BIT 63 of IA32_VMX_TRUE_PROCBASED_CTLS is set or not  */
 
-	read_msr();
+	unsigned int high, low;
 
-	/* Pinbased controls */
-	rdmsr(IA32_VMX_TRUE_PINBASED_CTLS, lo, hi);
-	pr_info("True Pinbased Controls MSR: 0x%llx\n",
-		(uint64_t)(lo | (uint64_t)hi << 32));
-	report_capability(pinbased, 5, lo, hi);
+	// Bit 55 of IA32_VMX_BASIC
+    	rdmsr(IA32_VMX_BASIC, low, high);
 
-	/* Primary Processor based controls */
-	rdmsr(IA32_VMX_TRUE_PROCBASED_CTLS, lo, hi);
-	pr_info("True Processor based Controls MSR: 0x%llx\n",
-		(uint64_t)(lo | (uint64_t)hi << 32));
-	report_capability(procbased, 21, lo, hi);
+    	if(test_bit(BIT55, (unsigned long*)&high))
+	{
+		printk("Bit 55 of IA32_VMX_BASIC is set!\n");
+		pr_info("\n");
 
-	/* Secondary Processor based controls */
-	rdmsr(IA32_VMX_PROCBASED_CTLS2, lo, hi);
-	pr_info("Secondary Processor based Controls MSR: 0x%llx\n",
-		(uint64_t)(lo | (uint64_t)hi << 32));
-	report_capability(secprocbased, 23, lo, hi);
+		/* True Pinbased controls */
+		rdmsr(IA32_VMX_TRUE_PINBASED_CTLS, lo, hi);
+		pr_info("True Pinbased Controls MSR: 0x%llx\n",
+			(uint64_t)(lo | (uint64_t)hi << 32));
+		report_capability(pinbased, 5, lo, hi);
+		pr_info("\n");
 
-	/* Exit controls */
-	rdmsr(IA32_VMX_TRUE_EXIT_CTLS, lo, hi);
-	pr_info("True Exit Controls MSR: 0x%llx\n",
-		(uint64_t)(lo | (uint64_t)hi << 32));
-	report_capability(exitcntrls, 11, lo, hi);
+		/* True Primary Processor based controls */
+		rdmsr(IA32_VMX_TRUE_PROCBASED_CTLS, lo, hi);
+		pr_info("True Processor based Controls MSR: 0x%llx\n",
+			(uint64_t)(lo | (uint64_t)hi << 32));
+		report_capability(procbased, 21, lo, hi);
+		pr_info("\n");
+		
+		
+		//Bit 63 of IA32_VMX_TRUE_PROCBASED_CLTS
+    		rdmsr(IA32_VMX_TRUE_PROCBASED_CTLS, low, high);
+
+    		if(test_bit(BIT63, (unsigned long*)&high))
+		{
+			printk("Bit 63 of IA32_VMX_TRUE_PROCBASED_CLTS is set!\n");
+
+			/* Secondary Processor based controls */
+			rdmsr(IA32_VMX_TRUE_PROCBASED_CTLS2, lo, hi);
+			pr_info("True Secondary Processor based Controls MSR: 0x%llx\n",
+				(uint64_t)(lo | (uint64_t)hi << 32));
+			report_capability(secprocbased, 23, lo, hi);
+			pr_info("\n");
+
+		}
+
+		/* True Exit controls */
+		rdmsr(IA32_VMX_TRUE_EXIT_CTLS, lo, hi);
+		pr_info("True Exit Controls MSR: 0x%llx\n",
+			(uint64_t)(lo | (uint64_t)hi << 32));
+		report_capability(exitcntrls, 11, lo, hi);
+		pr_info("\n");
+
     
-    	/* Entry controls */
-    	rdmsr(IA32_VMX_TRUE_ENTRY_CTLS, lo, hi);
-    	pr_info("True Entry Controls MSR: 0x%llx\n",
-            	(uint64_t)(lo | (uint64_t)hi << 32));
-    	report_capability(entry, 9, lo, hi);
+    		/* True Entry controls */
+    		rdmsr(IA32_VMX_TRUE_ENTRY_CTLS, lo, hi);
+    		pr_info("True Entry Controls MSR: 0x%llx\n",
+            		(uint64_t)(lo | (uint64_t)hi << 32));
+    		report_capability(entry, 9, lo, hi);
+		pr_info("\n");
+		
+	}
+        
+    else
+	{
+		printk("Bit 55 of IA32_VMX_BASIC is not set!\n");
+		pr_info("\n");
+
+		/* Pinbased controls */
+		rdmsr(IA32_VMX_PINBASED_CTLS, lo, hi);
+		pr_info("Pinbased Controls MSR: 0x%llx\n",
+			(uint64_t)(lo | (uint64_t)hi << 32));
+		report_capability(pinbased, 5, lo, hi);
+		pr_info("\n");
+
+		/* Primary Processor based controls */
+		rdmsr(IA32_VMX_PROCBASED_CTLS, lo, hi);
+		pr_info("Processor based Controls MSR: 0x%llx\n",
+			(uint64_t)(lo | (uint64_t)hi << 32));
+		report_capability(procbased, 21, lo, hi);
+		pr_info("\n");
+		
+		
+		//Bit 63 of IA32_VMX_PROCBASED_CLTS
+    		rdmsr(IA32_VMX_PROCBASED_CTLS, low, high);
+
+    		if(test_bit(BIT63, (unsigned long*)&high))
+		{
+			printk("Bit 63 of IA32_VMX_PROCBASED_CLTS is set!\n");
+
+			/* Secondary Processor based controls */
+			rdmsr(IA32_VMX_PROCBASED_CTLS2, lo, hi);
+			pr_info("Secondary Processor based Controls MSR: 0x%llx\n",
+				(uint64_t)(lo | (uint64_t)hi << 32));
+			report_capability(secprocbased, 23, lo, hi);
+			pr_info("\n");
+
+		}
+
+		/*Exit controls */
+		rdmsr(IA32_VMX_EXIT_CTLS, lo, hi);
+		pr_info("Exit Controls MSR: 0x%llx\n",
+			(uint64_t)(lo | (uint64_t)hi << 32));
+		report_capability(exitcntrls, 11, lo, hi);
+		pr_info("\n");
+
+    
+    		/* Entry controls */
+    		rdmsr(IA32_VMX_ENTRY_CTLS, lo, hi);
+    		pr_info("Entry Controls MSR: 0x%llx\n",
+            		(uint64_t)(lo | (uint64_t)hi << 32));
+    		report_capability(entry, 9, lo, hi);
+		pr_info("\n");
+
+		
+		
+	}
+       
 }
 
 /*
